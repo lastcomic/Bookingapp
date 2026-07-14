@@ -25,8 +25,9 @@ export async function GET() {
     try {
       await smtpTransport().verify();
       checks.email = "smtp ok";
-    } catch {
-      checks.email = "smtp login failed — check SMTP_USER / SMTP_PASS";
+    } catch (err: any) {
+      const detail = String(err?.message || err).slice(0, 160);
+      checks.email = `smtp login failed — ${detail}`;
     }
   } else if (process.env.RESEND_API_KEY) {
     checks.email = "resend configured";

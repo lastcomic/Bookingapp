@@ -41,6 +41,23 @@ export function formatSpan(start: string, end: string): string {
   return `${left} – ${right}`;
 }
 
+const DOW_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+// "Fri, Aug 14 – Sat, Aug 15, 2026" — the memo's engagement line.
+export function formatSpanWeekday(start: string, end: string): string {
+  const fmt = (iso: string, withYear: boolean) => {
+    const d = new Date(iso + "T00:00:00Z");
+    const base = `${DOW_SHORT[d.getUTCDay()]}, ${MONTHS_SHORT[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    return withYear ? `${base}, ${d.getUTCFullYear()}` : base;
+  };
+  if (start === end) return fmt(start, true);
+  return `${fmt(start, false)} – ${fmt(end, true)}`;
+}
+
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }

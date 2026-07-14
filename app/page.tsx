@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Calendar from "@/components/Calendar";
-import DealMemo, { MemoState } from "@/components/DealMemo";
+import DealMemo, { MemoState, MemoResult, OfferDraft } from "@/components/DealMemo";
 import { spanDaysForShows } from "@/lib/dates";
 
 type Intent = null | "request" | "offer";
@@ -23,10 +23,12 @@ export default function BookingPage() {
 
   // Intent + offer terms
   const [intent, setIntent] = useState<Intent>(null);
-  const [offerGuarantee, setOfferGuarantee] = useState("");
-  const [offerDoorPct, setOfferDoorPct] = useState("");
-  const [offerTravel, setOfferTravel] = useState("");
-  const [offerHotel, setOfferHotel] = useState<boolean | null>(null);
+  const [offerDraft, setOfferDraft] = useState<OfferDraft>({
+    guarantee: "",
+    doorPct: "",
+    travel: "",
+    hotel: "yes",
+  });
 
   // Buyer contact + verification
   const [buyerName, setBuyerName] = useState("");
@@ -39,8 +41,7 @@ export default function BookingPage() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
-  const [declined, setDeclined] = useState<string | null>(null);
+  const [result, setResult] = useState<MemoResult | null>(null);
 
   const roomComplete =
     startDate !== null &&
@@ -72,26 +73,27 @@ export default function BookingPage() {
       .then((data) => {
         if (seq !== quoteSeq.current) return;
         if (data.belowMinimum) setMemo({ kind: "belowMinimum" });
-        else if (data.collision) setMemo({ kind: "collision", span: data.span });
+        else if (data.collision)
+          setMemo({ kind: "collision", span: data.span, shows });
         else if (data.quote)
-          setMemo({
-            kind: "quote",
-            quote: data.quote,
-            span: data.span,
-            venue: venue.trim(),
-            shows,
-          });
+          setMemo({ kind: "quote", quote: data.quote, span: data.span, shows });
         else setMemo({ kind: "empty" });
       })
       .catch(() => {
         if (seq === quoteSeq.current) setMemo({ kind: "empty" });
       });
-  }, [startDate, capacity, ticketPrice, shows, address, repeatClaim, venue]);
+  }, [startDate, capacity, ticketPrice, shows, address, repeatClaim]);
 
   useEffect(() => {
     const t = setTimeout(fetchQuote, 400);
     return () => clearTimeout(t);
   }, [fetchQuote]);
+
+  function resetFlow() {
+    setIntent(null);
+    setResult(null);
+    setError(null);
+  }
 
   async function sendCode() {
     setError(null);
@@ -151,10 +153,10 @@ export default function BookingPage() {
       };
       if (intent === "offer") {
         body.offer = {
-          guarantee: Number(offerGuarantee),
-          doorPct: Number(offerDoorPct) || 0,
-          travel: Number(offerTravel) || 0,
-          hotel: offerHotel === true,
+          guarantee: Number(offerDraft.guarantee),
+          doorPct: Number(offerDraft.doorPct) || 0,
+          travel: Number(offerDraft.travel) || 0,
+          hotel: offerDraft.hotel === "yes",
         };
       }
       const res = await fetch("/api/submit", {
@@ -164,8 +166,8 @@ export default function BookingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
-      if (data.declined) setDeclined(data.message);
-      else setDone(data.message);
+      if (data.declined) setResult({ kind: "declined", message: data.message });
+      else setResult({ kind: "received", forOffer: intent === "offer" });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -179,329 +181,235 @@ export default function BookingPage() {
     buyerPhone.trim().length >= 7;
 
   const offerComplete =
-    intent !== "offer" ||
-    (Number(offerGuarantee) > 0 && offerHotel !== null);
+    intent !== "offer" || Number(offerDraft.guarantee) > 0;
 
   const memoReady = memo.kind === "quote";
+  const span = spanDaysForShows(shows);
 
   return (
     <div className="shell">
       <header className="masthead">
         <h1>John Heffron</h1>
         <div className="cred">
-          Winner · NBC&apos;s Last Comic Standing · 37 Years on Stage
+          Winner · NBC&apos;s Last Comic Standing&nbsp;&nbsp;·&nbsp;&nbsp;37 Years on Stage
         </div>
         <div className="officeNote">
           Private booking calendar. All terms issued by the office.
         </div>
       </header>
 
-      {done || declined ? (
-        <section className="panel" style={{ maxWidth: 560 }}>
-          <div className="panelTitle">{declined ? "Regarding your offer" : "Received"}</div>
-          <p style={{ marginTop: 8 }}>
-            {declined ||
-              "Your request is with the office. " + done}
-          </p>
-          {declined && (
-            <p style={{ marginTop: 12, color: "var(--muted)", fontSize: 13 }}>
-              To proceed on standard terms, refresh this page and request the
-              dates directly.
-            </p>
-          )}
-        </section>
-      ) : (
-        <div className="columns">
-          <div>
-            <section className="panel">
-              <div className="panelTitle">Open Dates</div>
-              <div className="panelSub">
-                Select a start date. The engagement span holds automatically
-                based on your show count.
-              </div>
-              <Calendar
-                selectedStart={startDate}
-                spanDays={spanDaysForShows(shows)}
-                onSelect={setStartDate}
-              />
-            </section>
+      <div className="columns">
+        {/* BUYER INPUTS */}
+        <div className="panel">
+          <div className="panelTitle">Pick your dates</div>
+          <Calendar
+            selectedStart={startDate}
+            spanDays={span}
+            onSelect={(d) => {
+              setStartDate(d);
+              resetFlow();
+            }}
+          />
+          <div className="calHint">
+            Selecting a start date holds {span} day{span > 1 ? "s" : ""} for a{" "}
+            {shows}-show engagement. HELD dates are unavailable.
+          </div>
 
-            <section className="panel">
-              <div className="panelTitle">Your Room</div>
+          <div className="panelTitle sectionGap">Tell us about your room</div>
+          <div className="field">
+            <label>Club / venue name</label>
+            <input
+              value={venue}
+              placeholder="e.g. The Comedy Attic"
+              onChange={(e) => {
+                setVenue(e.target.value);
+                resetFlow();
+              }}
+            />
+          </div>
+          <div className="field">
+            <label>Venue address or zip</label>
+            <input
+              value={address}
+              placeholder="e.g. 123 Main St, Grand Rapids, MI"
+              onChange={(e) => {
+                setAddress(e.target.value);
+                resetFlow();
+              }}
+            />
+          </div>
+          <div className="field">
+            <label>Seating capacity</label>
+            <input
+              inputMode="numeric"
+              value={capacity}
+              placeholder="250"
+              onChange={(e) => {
+                setCapacity(e.target.value.replace(/[^\d]/g, ""));
+                resetFlow();
+              }}
+            />
+          </div>
+          <div className="field">
+            <label>Ticket price ($)</label>
+            <input
+              inputMode="decimal"
+              value={ticketPrice}
+              placeholder="25"
+              onChange={(e) => {
+                setTicketPrice(e.target.value.replace(/[^\d.]/g, ""));
+                resetFlow();
+              }}
+            />
+          </div>
+          <div className="field">
+            <label>Number of shows</label>
+            <select
+              value={shows}
+              onChange={(e) => {
+                setShows(Number(e.target.value));
+                resetFlow();
+              }}
+            >
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <option key={n} value={n}>
+                  {n} {n === 1 ? "show" : "shows"}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label>Booked John before?</label>
+            <select
+              value={repeatClaim === null ? "" : repeatClaim ? "yes" : "no"}
+              onChange={(e) => {
+                setRepeatClaim(e.target.value === "" ? null : e.target.value === "yes");
+                resetFlow();
+              }}
+            >
+              <option value="" disabled>
+                Select…
+              </option>
+              <option value="no">First time</option>
+              <option value="yes">Yes, we&apos;ve worked together</option>
+            </select>
+          </div>
+        </div>
+
+        {/* THE DEAL MEMO */}
+        <div>
+          <DealMemo
+            state={memo}
+            intent={intent}
+            result={result}
+            roomComplete={roomComplete}
+            offerDraft={offerDraft}
+            onOfferDraft={setOfferDraft}
+            onRequest={() => setIntent("request")}
+            onStartOffer={() => setIntent("offer")}
+            onBackFromOffer={() => setIntent(null)}
+            onResultBack={resetFlow}
+          />
+
+          {intent !== null && !result && (
+            <section className="panel" style={{ marginTop: 24 }}>
+              <div className="panelTitle">Your details</div>
               <div className="panelSub">
-                Terms are prepared for your room as entered.
+                The office reviews all requests and responds within 48 hours.
               </div>
               <div className="field">
-                <label>Club / venue name</label>
+                <label>Name</label>
                 <input
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  placeholder="The Comedy Attic"
-                />
-              </div>
-              <div className="field">
-                <label>Venue address or zip</label>
-                <input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="123 Main St, Grand Rapids, MI"
+                  value={buyerName}
+                  onChange={(e) => setBuyerName(e.target.value)}
+                  autoComplete="name"
                 />
               </div>
               <div className="fieldRow">
                 <div className="field">
-                  <label>Seating capacity</label>
+                  <label>Email</label>
                   <input
-                    inputMode="numeric"
-                    value={capacity}
-                    onChange={(e) => setCapacity(e.target.value.replace(/[^\d]/g, ""))}
-                    placeholder="250"
+                    type="email"
+                    value={buyerEmail}
+                    onChange={(e) => {
+                      setBuyerEmail(e.target.value);
+                      setVerified(false);
+                      setCodeSent(false);
+                    }}
+                    autoComplete="email"
                   />
                 </div>
                 <div className="field">
-                  <label>Ticket price ($)</label>
+                  <label>Phone</label>
                   <input
-                    inputMode="decimal"
-                    value={ticketPrice}
-                    onChange={(e) =>
-                      setTicketPrice(e.target.value.replace(/[^\d.]/g, ""))
-                    }
-                    placeholder="25"
+                    type="tel"
+                    value={buyerPhone}
+                    onChange={(e) => setBuyerPhone(e.target.value)}
+                    autoComplete="tel"
                   />
                 </div>
               </div>
-              <div className="field">
-                <label>Number of shows</label>
-                <select value={shows} onChange={(e) => setShows(Number(e.target.value))}>
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      {n} {n === 1 ? "show" : "shows"} ·{" "}
-                      {spanDaysForShows(n)}-day engagement
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label>Booked John before?</label>
-                <div className="radioRow">
-                  <button
-                    type="button"
-                    className={repeatClaim === false ? "on" : ""}
-                    onClick={() => setRepeatClaim(false)}
-                  >
-                    First time
-                  </button>
-                  <button
-                    type="button"
-                    className={repeatClaim === true ? "on" : ""}
-                    onClick={() => setRepeatClaim(true)}
-                  >
-                    Yes, we&apos;ve worked together
-                  </button>
-                </div>
-              </div>
+
+              {!verified && !codeSent && (
+                <button
+                  type="button"
+                  className="btn gold"
+                  style={{ width: "100%", marginTop: 16 }}
+                  disabled={!contactComplete || busy}
+                  onClick={sendCode}
+                >
+                  Send verification code
+                </button>
+              )}
+
+              {!verified && codeSent && (
+                <>
+                  <div className="field">
+                    <label>6-digit code (sent to your email)</label>
+                    <input
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
+                    />
+                  </div>
+                  {devCode && (
+                    <div className="notice">
+                      Email delivery is not configured. Your code: {devCode}
+                    </div>
+                  )}
+                  <div className="btnRow">
+                    <button
+                      type="button"
+                      className="btn gold"
+                      disabled={code.length !== 6 || busy}
+                      onClick={checkCode}
+                    >
+                      Verify
+                    </button>
+                    <button type="button" className="btn" disabled={busy} onClick={sendCode}>
+                      Resend
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {verified && (
+                <button
+                  type="button"
+                  className="memoCta"
+                  disabled={busy || !memoReady || !roomComplete || !offerComplete}
+                  onClick={submit}
+                >
+                  {intent === "offer" ? "Submit offer for review" : "Request these dates"}
+                </button>
+              )}
+
+              {error && <div className="notice err">{error}</div>}
             </section>
-          </div>
-
-          <div className="memoColumn">
-            <DealMemo state={memo} />
-
-            {intent === null && (
-              <>
-                <button
-                  type="button"
-                  className="ctaPrimary"
-                  disabled={!memoReady || !roomComplete}
-                  onClick={() => setIntent("request")}
-                >
-                  Request these dates
-                </button>
-                <button
-                  type="button"
-                  className="ctaGhost"
-                  disabled={!memoReady || !roomComplete}
-                  onClick={() => setIntent("offer")}
-                >
-                  Working with a different budget structure? Submit your offer.
-                </button>
-              </>
-            )}
-
-            {intent === "offer" && (
-              <section className="panel" style={{ marginTop: 16 }}>
-                <div className="panelTitle">Your Offer</div>
-                <div className="panelSub">
-                  Dates and room details carry over automatically.
-                </div>
-                <div className="fieldRow">
-                  <div className="field">
-                    <label>Guarantee ($)</label>
-                    <input
-                      inputMode="numeric"
-                      value={offerGuarantee}
-                      onChange={(e) =>
-                        setOfferGuarantee(e.target.value.replace(/[^\d]/g, ""))
-                      }
-                      placeholder="3000"
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Door %, if any</label>
-                    <input
-                      inputMode="numeric"
-                      value={offerDoorPct}
-                      onChange={(e) =>
-                        setOfferDoorPct(e.target.value.replace(/[^\d]/g, ""))
-                      }
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div className="fieldRow">
-                  <div className="field">
-                    <label>Travel ($)</label>
-                    <input
-                      inputMode="numeric"
-                      value={offerTravel}
-                      onChange={(e) =>
-                        setOfferTravel(e.target.value.replace(/[^\d]/g, ""))
-                      }
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Hotel provided</label>
-                    <div className="radioRow">
-                      <button
-                        type="button"
-                        className={offerHotel === true ? "on" : ""}
-                        onClick={() => setOfferHotel(true)}
-                      >
-                        Yes
-                      </button>
-                      <button
-                        type="button"
-                        className={offerHotel === false ? "on" : ""}
-                        onClick={() => setOfferHotel(false)}
-                      >
-                        No
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {intent !== null && (
-              <section className="panel" style={{ marginTop: 16 }}>
-                <div className="panelTitle">Your Details</div>
-                <div className="panelSub">
-                  The office reviews all requests and responds within 48 hours.
-                </div>
-                <div className="field">
-                  <label>Name</label>
-                  <input
-                    value={buyerName}
-                    onChange={(e) => setBuyerName(e.target.value)}
-                    autoComplete="name"
-                  />
-                </div>
-                <div className="fieldRow">
-                  <div className="field">
-                    <label>Email</label>
-                    <input
-                      type="email"
-                      value={buyerEmail}
-                      onChange={(e) => {
-                        setBuyerEmail(e.target.value);
-                        setVerified(false);
-                        setCodeSent(false);
-                      }}
-                      autoComplete="email"
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Phone</label>
-                    <input
-                      type="tel"
-                      value={buyerPhone}
-                      onChange={(e) => setBuyerPhone(e.target.value)}
-                      autoComplete="tel"
-                    />
-                  </div>
-                </div>
-
-                {!verified && !codeSent && (
-                  <button
-                    type="button"
-                    className="btn gold"
-                    style={{ width: "100%" }}
-                    disabled={!contactComplete || busy}
-                    onClick={sendCode}
-                  >
-                    Send verification code
-                  </button>
-                )}
-
-                {!verified && codeSent && (
-                  <>
-                    <div className="field">
-                      <label>6-digit code (sent to your email)</label>
-                      <input
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={code}
-                        onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
-                      />
-                    </div>
-                    {devCode && (
-                      <div className="notice">
-                        Email delivery is not configured. Your code: {devCode}
-                      </div>
-                    )}
-                    <div className="btnRow">
-                      <button
-                        type="button"
-                        className="btn gold"
-                        disabled={code.length !== 6 || busy}
-                        onClick={checkCode}
-                      >
-                        Verify
-                      </button>
-                      <button type="button" className="btn" disabled={busy} onClick={sendCode}>
-                        Resend
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {verified && (
-                  <button
-                    type="button"
-                    className="ctaPrimary"
-                    disabled={busy || !memoReady || !roomComplete || !offerComplete}
-                    onClick={submit}
-                  >
-                    {intent === "offer" ? "Submit offer" : "Request these dates"}
-                  </button>
-                )}
-
-                {error && <div className="notice err">{error}</div>}
-
-                <button
-                  type="button"
-                  className="ctaGhost"
-                  onClick={() => {
-                    setIntent(null);
-                    setError(null);
-                  }}
-                >
-                  Back
-                </button>
-              </section>
-            )}
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       <footer className="footerLinks">
         <a href="/corporate">Corporate &amp; private events</a>

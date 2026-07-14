@@ -245,21 +245,31 @@ function OfficeInner() {
             </section>
           )}
           {items.map((item) => {
-            const offerLow =
-              item.offer &&
-              item.offer.guarantee + (item.offer.travel || 0) <
-                item.quote.guarantee + (item.quote.travelBuyout || 0);
-            const offerPct = item.offer
-              ? Math.round(
-                  ((item.offer.guarantee + (item.offer.travel || 0)) /
-                    (item.quote.guarantee + (item.quote.travelBuyout || 0))) *
-                    100
-                )
+            const atOrAbove =
+              !item.offer || item.offer.guarantee >= item.quote.guarantee;
+            const pctOfQuote = item.offer
+              ? Math.round((item.offer.guarantee / item.quote.guarantee) * 100)
               : null;
+            const pillClass =
+              item.status === "new"
+                ? "new"
+                : item.status === "accepted"
+                ? "accepted"
+                : item.status === "countered"
+                ? "countered"
+                : "declined";
+            const pillText =
+              item.status === "new"
+                ? "Pending"
+                : item.status === "accepted"
+                ? "Accepted → contract"
+                : item.status === "countered"
+                ? "Countered w/ quote"
+                : "Declined";
             return (
               <div
                 key={item.id}
-                className="inboxItem"
+                className="offerCard"
                 style={
                   highlightId === item.id
                     ? { borderColor: "var(--gold)" }
@@ -267,56 +277,60 @@ function OfficeInner() {
                 }
               >
                 <div className="head">
-                  <div>
-                    <span className="venueLine">{item.venue}</span>
-                    <span className={`tag ${item.repeat_claim ? "gold" : ""}`}>
-                      {item.repeat_claim ? "Repeat buyer" : "First-timer"}
-                    </span>
-                    {item.repeat_claim && !item.repeat_verified && (
-                      <span className="tag red">Unverified</span>
+                  <b className="venueLine">
+                    {item.venue} — {item.address}{" "}
+                    {item.repeat_claim ? (
+                      <span className="repeatNote" style={{ color: "var(--green)" }}>
+                        · REPEAT BUYER{!item.repeat_verified && " (UNVERIFIED)"}
+                      </span>
+                    ) : (
+                      <span className="repeatNote" style={{ color: "var(--gold)" }}>
+                        · FIRST-TIMER
+                      </span>
                     )}
-                    <span className="tag">
-                      {item.kind === "offer" ? "Offer" : "Date request"}
-                    </span>
-                  </div>
-                  <div className={`statusStamp ${item.status}`}>{item.status}</div>
+                  </b>
+                  <span className={`pill ${pillClass}`}>{pillText}</span>
                 </div>
                 <div className="meta">
-                  {item.address} · {formatSpan(item.start_date, item.end_date)} ·{" "}
-                  {item.shows} show{item.shows === 1 ? "" : "s"} · Cap{" "}
-                  {item.capacity} · Tickets {money(item.ticket_price)}
+                  Dates: {formatSpan(item.start_date, item.end_date)} ·{" "}
+                  {item.kind === "offer" ? "offer" : "date request"}
+                  <br />
+                  {item.capacity} cap · {money(item.ticket_price)} tix ·{" "}
+                  {item.shows} shows
                   {item.drive_minutes !== null &&
                     ` · ${Math.round(item.drive_minutes / 6) / 10} hr drive`}
-                </div>
-                <div className="meta">
+                  <br />
                   {item.buyer_name} · {item.buyer_email} · {item.buyer_phone}
-                </div>
-                <div className="numbers">
-                  <div>
-                    <span className="lbl">Engine quote</span>
-                    {money(item.quote.guarantee)} vs {item.quote.doorPct}%
-                    {item.quote.travelBuyout > 0 &&
-                      ` + ${money(item.quote.travelBuyout)} travel`}
-                  </div>
-                  {item.offer && (
-                    <div className={offerLow ? "offerLow" : "offerGood"}>
-                      <span className="lbl">Their offer</span>
-                      {money(item.offer.guarantee)}
-                      {item.offer.doorPct ? ` vs ${item.offer.doorPct}%` : ""}
-                      {item.offer.travel ? ` + ${money(item.offer.travel)} travel` : ""}
-                      {" · "}hotel {item.offer.hotel ? "yes" : "no"}
-                      {offerLow && offerPct !== null && ` (${offerPct}% of quote)`}
-                    </div>
+                  <br />
+                  {item.offer ? (
+                    <>
+                      <b style={{ color: "var(--text)" }}>
+                        Their offer: {money(item.offer.guarantee)}
+                      </b>
+                      {item.offer.doorPct > 0 && <> vs {item.offer.doorPct}%</>} ·
+                      travel {money(item.offer.travel)} · hotel{" "}
+                      {item.offer.hotel ? "yes" : "no"}
+                      <br />
+                      <span className={`engineLine ${atOrAbove ? "good" : "low"}`}>
+                        Engine would quote: {money(item.quote.guarantee)} (
+                        {atOrAbove ? "at/above" : `${pctOfQuote}% of`} your number) ·
+                        walkout potential {money(item.quote.walkoutPotential)}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="engineLine good">
+                      Engine quote: {money(item.quote.guarantee)} vs{" "}
+                      {item.quote.doorPct}%
+                      {item.quote.travelBuyout > 0 &&
+                        ` + ${money(item.quote.travelBuyout)} travel`}{" "}
+                      · walkout potential {money(item.quote.walkoutPotential)}
+                    </span>
                   )}
-                  <div>
-                    <span className="lbl">Walkout potential</span>
-                    {money(item.quote.walkoutPotential)}
-                  </div>
                 </div>
                 {(item.status === "new" || item.status === "countered") && (
-                  <div className="btnRow">
+                  <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                     <button
-                      className="btn gold"
+                      className="actBtn accept"
                       disabled={busy}
                       onClick={() => act(item.id, "accept")}
                     >
@@ -324,15 +338,15 @@ function OfficeInner() {
                     </button>
                     {item.kind === "offer" && item.status === "new" && (
                       <button
-                        className="btn"
+                        className="actBtn counter"
                         disabled={busy}
                         onClick={() => act(item.id, "counter")}
                       >
-                        Counter with quote
+                        Counter w/ engine quote
                       </button>
                     )}
                     <button
-                      className="btn red"
+                      className="actBtn decline"
                       disabled={busy}
                       onClick={() => act(item.id, "decline")}
                     >

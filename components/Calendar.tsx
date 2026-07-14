@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDays, spanDates, todayISO } from "@/lib/dates";
 
-const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -121,22 +121,12 @@ export default function Calendar({
         </div>
       </div>
       <div className="calGrid">
-        {DOW.map((d) => (
-          <div key={d} className="calDow">
+        {DOW.map((d, i) => (
+          <div key={i} className="calDow">
             {d}
           </div>
         ))}
         {cells}
-      </div>
-      <div className="calLegend">
-        <span>
-          <span className="dot" style={{ background: "var(--gold)" }} />
-          Selected engagement
-        </span>
-        <span>
-          <span className="dot" style={{ background: "rgba(122,58,46,.55)" }} />
-          Held
-        </span>
       </div>
     </div>
   );

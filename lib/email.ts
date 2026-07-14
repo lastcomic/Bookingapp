@@ -9,16 +9,20 @@ import { formatSpan } from "@/lib/dates";
 type Mail = { to: string; subject: string; text: string };
 
 // Tolerant of copy/paste artifacts: Gmail shows app passwords with spaces,
-// and values sometimes arrive with stray whitespace.
+// and values sometimes arrive with stray whitespace or wrapping quotes.
+function clean(value: string | undefined, fallback = ""): string {
+  return (value || fallback).trim().replace(/^["']|["']$/g, "").trim();
+}
+
 export function smtpTransport() {
-  const port = Number((process.env.SMTP_PORT || "465").trim());
+  const port = Number(clean(process.env.SMTP_PORT, "465"));
   return nodemailer.createTransport({
-    host: (process.env.SMTP_HOST || "smtp.gmail.com").trim(),
+    host: clean(process.env.SMTP_HOST, "smtp.gmail.com"),
     port,
     secure: port === 465,
     auth: {
-      user: (process.env.SMTP_USER || "").trim(),
-      pass: (process.env.SMTP_PASS || "").replace(/\s+/g, ""),
+      user: clean(process.env.SMTP_USER),
+      pass: clean(process.env.SMTP_PASS).replace(/\s+/g, ""),
     },
   });
 }

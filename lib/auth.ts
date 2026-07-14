@@ -1,8 +1,17 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
 
-const COOKIE_NAME = "office_session";
 const SESSION_DAYS = 30;
+
+// Two separate doors: "office" (John, via ADMIN_PASSWORD) and "site"
+// (buyers, via the access code in engine settings). Tokens are scoped so
+// one cookie can never open the other door.
+type Scope = "office" | "site";
+
+const COOKIE_NAMES: Record<Scope, string> = {
+  office: "office_session",
+  site: "site_session",
+};
 
 function secret(): string {
   const s = process.env.SESSION_SECRET || process.env.ADMIN_PASSWORD;
@@ -14,41 +23,50 @@ function sign(payload: string): string {
   return crypto.createHmac("sha256", secret()).update(payload).digest("hex");
 }
 
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+}
+
 export function checkPassword(password: string): boolean {
   const expected = process.env.ADMIN_PASSWORD;
   if (!expected) return false;
-  const a = Buffer.from(password);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return safeEqual(password, expected);
 }
 
-export function createSessionToken(): string {
+export function createSessionToken(scope: Scope): string {
   const exp = Date.now() + SESSION_DAYS * 24 * 3600 * 1000;
-  return `${exp}.${sign(String(exp))}`;
+  return `${exp}.${sign(`${scope}:${exp}`)}`;
 }
 
-export function verifySessionToken(token: string | undefined): boolean {
+export function verifySessionToken(scope: Scope, token: string | undefined): boolean {
   if (!token) return false;
   const [exp, sig] = token.split(".");
   if (!exp || !sig) return false;
   if (Number(exp) < Date.now()) return false;
-  const expected = sign(exp);
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return safeEqual(sig, sign(`${scope}:${exp}`));
 }
 
-export function isOfficeAuthed(): boolean {
+function isAuthed(scope: Scope): boolean {
   try {
-    return verifySessionToken(cookies().get(COOKIE_NAME)?.value);
+    return verifySessionToken(scope, cookies().get(COOKIE_NAMES[scope])?.value);
   } catch {
     return false;
   }
 }
 
-export function sessionCookie(token: string) {
+export function isOfficeAuthed(): boolean {
+  return isAuthed("office");
+}
+
+export function isSiteAuthed(): boolean {
+  return isAuthed("site");
+}
+
+export function sessionCookie(scope: Scope, token: string) {
   return {
-    name: COOKIE_NAME,
+    name: COOKIE_NAMES[scope],
     value: token,
     httpOnly: true,
     sameSite: "lax" as const,

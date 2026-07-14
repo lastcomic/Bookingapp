@@ -19,6 +19,8 @@ export type EngineConfig = {
   minCapacity: number;
   autoDeclinePct: number; // offers under this % of engine quote
   autoDeclineEnabled: boolean;
+  accessCode: string; // buyer-facing front-door code; empty = page open
+  requireEmailVerification: boolean;
 };
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -39,6 +41,8 @@ export const DEFAULT_CONFIG: EngineConfig = {
   minCapacity: 100,
   autoDeclinePct: 70,
   autoDeclineEnabled: true,
+  accessCode: "",
+  requireEmailVerification: false,
 };
 
 export type EngineInput = {

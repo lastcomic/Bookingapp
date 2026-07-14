@@ -67,5 +67,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     span: { start: startDate, end: endDate },
     quote: toPublicQuote(quote, shows),
+    verificationRequired: cfg.requireEmailVerification === true,
   });
 }

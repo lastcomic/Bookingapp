@@ -233,6 +233,7 @@ function OfficeInner() {
   }
 
   const SETTINGS_FIELDS: [string, string][] = [
+    ["accessCode", "Buyer access code (blank = page open)"],
     ["homeBase", "Home base"],
     ["driveRadiusHours", "Drive radius (hours)"],
     ["winterRadiusHours", "Winter radius, Nov–Mar (hours)"],
@@ -520,6 +521,29 @@ function OfficeInner() {
                   type="button"
                   className={!config.autoDeclineEnabled ? "on" : ""}
                   onClick={() => setConfig({ ...config, autoDeclineEnabled: false })}
+                >
+                  Off
+                </button>
+              </div>
+            </div>
+            <div className="field">
+              <label>Buyer email verification</label>
+              <div className="radioRow">
+                <button
+                  type="button"
+                  className={config.requireEmailVerification ? "on" : ""}
+                  onClick={() =>
+                    setConfig({ ...config, requireEmailVerification: true })
+                  }
+                >
+                  Required
+                </button>
+                <button
+                  type="button"
+                  className={!config.requireEmailVerification ? "on" : ""}
+                  onClick={() =>
+                    setConfig({ ...config, requireEmailVerification: false })
+                  }
                 >
                   Off
                 </button>

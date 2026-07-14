@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!(await emailVerified(buyerEmail))) {
+  if (cfg.requireEmailVerification && !(await emailVerified(buyerEmail))) {
     return NextResponse.json(
       { error: "Please verify your email before submitting" },
       { status: 403 }

@@ -24,9 +24,9 @@ never shipped to the client. The API returns only the `PublicQuote` subset.
 
 - Next.js (App Router), deployed on Vercel
 - Postgres (Vercel Postgres or Supabase) — schema auto-creates on first use
-- Google Calendar API (read-only) for held dates
+- Held dates: manual holds in `/office`, plus optional Google Calendar sync
 - Google Maps Distance Matrix for drive time from home base
-- Resend for transactional email
+- Email via SMTP (works with a Gmail app password) or Resend
 - Single-password admin at `/office`
 
 ## Setup

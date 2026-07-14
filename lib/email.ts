@@ -1,36 +1,56 @@
-// Transactional email via the Resend REST API. Without RESEND_API_KEY the
-// send is logged to the server console instead (local preview).
+// Transactional email. Prefers plain SMTP (works with a Gmail app password —
+// SMTP_USER/SMTP_PASS), falls back to the Resend API if RESEND_API_KEY is
+// set, and logs to the server console when neither is configured.
 
+import nodemailer from "nodemailer";
 import { EngineConfig, EngineQuote, OfferTerms } from "@/lib/engine";
 import { formatSpan } from "@/lib/dates";
 
 type Mail = { to: string; subject: string; text: string };
 
-export async function sendMail({ to, subject, text }: Mail): Promise<boolean> {
-  const key = process.env.RESEND_API_KEY;
-  const from = process.env.EMAIL_FROM || "The Office <office@example.com>";
-  if (!key) {
-    console.log(`[email:dev] to=${to} subject=${subject}\n${text}`);
-    return false;
-  }
+async function sendViaSmtp(mail: Mail, from: string): Promise<boolean> {
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: (process.env.SMTP_PORT || "465") === "465",
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+  await transporter.sendMail({ from, to: mail.to, subject: mail.subject, text: mail.text });
+  return true;
+}
+
+async function sendViaResend(mail: Mail, from: string): Promise<boolean> {
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to: mail.to, subject: mail.subject, text: mail.text }),
+  });
+  if (!res.ok) throw new Error(`Resend failed (${res.status}): ${await res.text()}`);
+  return true;
+}
+
+export async function sendMail(mail: Mail): Promise<boolean> {
+  const from =
+    process.env.EMAIL_FROM ||
+    (process.env.SMTP_USER
+      ? `The Office of John Heffron <${process.env.SMTP_USER}>`
+      : "The Office <office@example.com>");
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ from, to, subject, text }),
-    });
-    if (!res.ok) {
-      console.error(`Resend failed (${res.status}):`, await res.text());
-      return false;
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      return await sendViaSmtp(mail, from);
     }
-    return true;
+    if (process.env.RESEND_API_KEY) {
+      return await sendViaResend(mail, from);
+    }
   } catch (err) {
-    console.error("Resend error:", err);
+    console.error("Email send error:", err);
     return false;
   }
+  console.log(`[email:dev] to=${mail.to} subject=${mail.subject}\n${mail.text}`);
+  return false;
 }
 
 export type SubmissionRecord = {

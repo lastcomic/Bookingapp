@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { formatSpan } from "@/lib/dates";
+import { formatSpan, todayISO } from "@/lib/dates";
 
 type Item = {
   id: number;
@@ -44,13 +44,53 @@ function OfficeInner() {
 
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
-  const [tab, setTab] = useState<"inbox" | "settings" | "venues">("inbox");
+  const [tab, setTab] = useState<"inbox" | "holds" | "settings" | "venues">("inbox");
   const [items, setItems] = useState<Item[]>([]);
   const [config, setConfig] = useState<Record<string, any> | null>(null);
   const [venuesText, setVenuesText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  // Held-dates tab
+  const today = todayISO();
+  const [holdsYM, setHoldsYM] = useState<[number, number]>([
+    Number(today.slice(0, 4)),
+    Number(today.slice(5, 7)) - 1,
+  ]);
+  const [holdsHeld, setHoldsHeld] = useState<Set<string>>(new Set());
+  const [holdsManual, setHoldsManual] = useState<Set<string>>(new Set());
+
+  const loadHolds = useCallback(async (y: number, m: number) => {
+    const from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const next = new Date(Date.UTC(y, m + 1, 1));
+    const to = next.toISOString().slice(0, 10);
+    const res = await fetch(`/api/office/holds?from=${from}&to=${to}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setHoldsHeld(new Set(data.held || []));
+    setHoldsManual(new Set(data.manual || []));
+  }, []);
+
+  useEffect(() => {
+    if (authed && tab === "holds") loadHolds(holdsYM[0], holdsYM[1]);
+  }, [authed, tab, holdsYM, loadHolds]);
+
+  async function toggleHold(date: string) {
+    const isManual = holdsManual.has(date);
+    if (!isManual && holdsHeld.has(date)) return; // calendar/accepted hold — not editable here
+    setBusy(true);
+    try {
+      await fetch("/api/office/holds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isManual ? { remove: [date] } : { add: [date] }),
+      });
+      await loadHolds(holdsYM[0], holdsYM[1]);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const loadAll = useCallback(async () => {
     const [inboxRes, settingsRes, venuesRes] = await Promise.all([
@@ -221,6 +261,9 @@ function OfficeInner() {
         <button className={tab === "inbox" ? "on" : ""} onClick={() => setTab("inbox")}>
           Inbox
         </button>
+        <button className={tab === "holds" ? "on" : ""} onClick={() => setTab("holds")}>
+          Held dates
+        </button>
         <button
           className={tab === "settings" ? "on" : ""}
           onClick={() => setTab("settings")}
@@ -359,6 +402,90 @@ function OfficeInner() {
           })}
         </div>
       )}
+
+      {tab === "holds" && (() => {
+        const [y, m] = holdsYM;
+        const monthNames = [
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December",
+        ];
+        const first = new Date(Date.UTC(y, m, 1)).getUTCDay();
+        const days = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+        const cells = [];
+        for (let b = 0; b < first; b++) {
+          cells.push(<div key={`e${b}`} className="calCell empty" />);
+        }
+        for (let day = 1; day <= days; day++) {
+          const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const isPast = iso < today;
+          const isManual = holdsManual.has(iso);
+          const isOtherHold = !isManual && holdsHeld.has(iso);
+          const cls = [
+            "calCell",
+            isPast ? "past" : isManual || isOtherHold ? "held" : "open",
+          ].join(" ");
+          cells.push(
+            <button
+              key={iso}
+              type="button"
+              className={cls}
+              disabled={isPast || isOtherHold || busy}
+              onClick={() => toggleHold(iso)}
+              title={
+                isManual
+                  ? "Held by you — tap to release"
+                  : isOtherHold
+                  ? "Held by calendar sync or an accepted engagement"
+                  : "Open — tap to hold"
+              }
+            >
+              <span>{day}</span>
+              {(isManual || isOtherHold) && !isPast && (
+                <span className="heldTag">{isManual ? "HELD ✕" : "HELD"}</span>
+              )}
+            </button>
+          );
+        }
+        return (
+          <section className="panel">
+            <div className="panelTitle">Held dates</div>
+            <div className="panelSub">
+              Tap an open date to hold it; tap one of your holds (HELD ✕) to
+              release it. Buyers see only HELD. Dates held by calendar sync or
+              accepted engagements can&apos;t be released here.
+            </div>
+            <div className="calHeader">
+              <span className="calMonth">
+                {monthNames[m]} {y}
+              </span>
+              <span className="calNav">
+                <button
+                  type="button"
+                  aria-label="Previous month"
+                  onClick={() => setHoldsYM(m === 0 ? [y - 1, 11] : [y, m - 1])}
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next month"
+                  onClick={() => setHoldsYM(m === 11 ? [y + 1, 0] : [y, m + 1])}
+                >
+                  ›
+                </button>
+              </span>
+            </div>
+            <div className="calGrid" style={{ maxWidth: 480 }}>
+              {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                <div key={i} className="calDow">
+                  {d}
+                </div>
+              ))}
+              {cells}
+            </div>
+          </section>
+        );
+      })()}
 
       {tab === "settings" && config && (
         <section className="panel">

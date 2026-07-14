@@ -72,6 +72,13 @@ CREATE TABLE IF NOT EXISTS past_venues (
   artist_id TEXT NOT NULL DEFAULT 'john-heffron',
   name TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS manual_holds (
+  id SERIAL PRIMARY KEY,
+  artist_id TEXT NOT NULL DEFAULT 'john-heffron',
+  hold_date DATE NOT NULL,
+  UNIQUE (artist_id, hold_date)
+);
 `;
 
 async function ensureSchema(): Promise<void> {

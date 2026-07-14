@@ -123,17 +123,40 @@ async function acceptedDates(timeMin: string, timeMax: string): Promise<string[]
   }
 }
 
+// Dates John blocked by hand in the office.
+export async function manualHolds(timeMin: string, timeMax: string): Promise<string[]> {
+  try {
+    const { rows } = await query<{ hold_date: string }>(
+      `SELECT to_char(hold_date, 'YYYY-MM-DD') AS hold_date
+       FROM manual_holds WHERE hold_date >= $1 AND hold_date < $2`,
+      [timeMin, timeMax]
+    );
+    return rows.map((r) => r.hold_date);
+  } catch {
+    return [];
+  }
+}
+
+export function clearHeldCache(): void {
+  cache.clear();
+}
+
 // Held dates in [timeMin, timeMax) as YYYY-MM-DD. Only "HELD" — never
 // where, who, or for how much.
-export async function heldDates(timeMin: string, timeMax: string): Promise<string[]> {
+export async function heldDates(
+  timeMin: string,
+  timeMax: string,
+  fresh = false
+): Promise<string[]> {
   const key = `${timeMin}|${timeMax}`;
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_MS) return hit.dates;
-  const [google, accepted] = await Promise.all([
+  if (!fresh && hit && Date.now() - hit.at < CACHE_MS) return hit.dates;
+  const [google, accepted, manual] = await Promise.all([
     googleHeldDates(timeMin, timeMax),
     acceptedDates(timeMin, timeMax),
+    manualHolds(timeMin, timeMax),
   ]);
-  const dates = [...new Set([...google, ...accepted])].sort();
+  const dates = [...new Set([...google, ...accepted, ...manual])].sort();
   cache.set(key, { dates, at: Date.now() });
   return dates;
 }

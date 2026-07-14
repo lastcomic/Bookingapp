@@ -8,14 +8,28 @@ import { formatSpan } from "@/lib/dates";
 
 type Mail = { to: string; subject: string; text: string };
 
-async function sendViaSmtp(mail: Mail, from: string): Promise<boolean> {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: (process.env.SMTP_PORT || "465") === "465",
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+// Tolerant of copy/paste artifacts: Gmail shows app passwords with spaces,
+// and values sometimes arrive with stray whitespace.
+export function smtpTransport() {
+  const port = Number((process.env.SMTP_PORT || "465").trim());
+  return nodemailer.createTransport({
+    host: (process.env.SMTP_HOST || "smtp.gmail.com").trim(),
+    port,
+    secure: port === 465,
+    auth: {
+      user: (process.env.SMTP_USER || "").trim(),
+      pass: (process.env.SMTP_PASS || "").replace(/\s+/g, ""),
+    },
   });
-  await transporter.sendMail({ from, to: mail.to, subject: mail.subject, text: mail.text });
+}
+
+async function sendViaSmtp(mail: Mail, from: string): Promise<boolean> {
+  await smtpTransport().sendMail({
+    from,
+    to: mail.to,
+    subject: mail.subject,
+    text: mail.text,
+  });
   return true;
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 import { query } from "@/lib/db";
+import { smtpTransport } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +23,7 @@ export async function GET() {
 
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: Number(process.env.SMTP_PORT || 465),
-        secure: (process.env.SMTP_PORT || "465") === "465",
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-      await transporter.verify();
+      await smtpTransport().verify();
       checks.email = "smtp ok";
     } catch {
       checks.email = "smtp login failed — check SMTP_USER / SMTP_PASS";

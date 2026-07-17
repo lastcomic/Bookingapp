@@ -45,16 +45,29 @@ function money(n: number): string {
   return "$" + Math.round(n).toLocaleString("en-US");
 }
 
+export type OfferSummary = {
+  venue: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+};
+
 export default function DealMemo({
   state,
   intent,
   result,
   roomComplete,
   offerDraft,
+  offerReview,
+  offerSummary,
+  busy,
+  sendError,
   onOfferDraft,
   onRequest,
   onStartOffer,
   onBackFromOffer,
+  onSendOffer,
+  onEditOffer,
   onResultBack,
 }: {
   state: MemoState;
@@ -62,10 +75,16 @@ export default function DealMemo({
   result: MemoResult | null;
   roomComplete: boolean;
   offerDraft: OfferDraft;
+  offerReview: boolean;
+  offerSummary: OfferSummary;
+  busy: boolean;
+  sendError: string | null;
   onOfferDraft: (draft: OfferDraft) => void;
   onRequest: () => void;
   onStartOffer: () => void;
   onBackFromOffer: () => void;
+  onSendOffer: () => void;
+  onEditOffer: () => void;
   onResultBack: () => void;
 }) {
   // Terminal states render on the paper, exactly like the prototype.
@@ -90,6 +109,72 @@ export default function DealMemo({
             </button>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Review step: the buyer's own offer, rendered back to them on the paper
+  // before it is sent to the office.
+  if (intent === "offer" && offerReview && state.kind === "quote") {
+    const guarantee = Number(offerDraft.guarantee) || 0;
+    const doorPct = Number(offerDraft.doorPct) || 0;
+    const travel = Number(offerDraft.travel) || 0;
+    return (
+      <div className="memo">
+        <div className="stamp">Your Offer</div>
+        <div className="memoHead">OFFICE OF JOHN HEFFRON · YOUR OFFER</div>
+        <hr className="rule" />
+        <div className="engagementLine">
+          <b>VENUE:</b> {offerSummary.venue || "—"}
+          <br />
+          <b>ENGAGEMENT:</b> {formatSpanWeekday(state.span.start, state.span.end)} ·{" "}
+          {state.shows} {state.shows === 1 ? "show" : "shows"}
+        </div>
+        <div className="kicker">YOUR OFFER</div>
+        <div className="big">
+          {money(guarantee)}
+          {doorPct > 0 && (
+            <>
+              {" "}
+              <span className="vs">vs</span> {doorPct}%
+            </>
+          )}
+        </div>
+        <div className="greater">
+          Guarantee{doorPct > 0 ? " vs door percentage" : ""}, as offered.
+        </div>
+        <hr className="rule" />
+        <div className="riders">
+          {travel > 0 && <div>+ {money(travel)} travel provided</div>}
+          <div>
+            Hotel {offerDraft.hotel === "yes" ? "provided by purchaser" : "not included"}
+          </div>
+        </div>
+        <hr className="rule" />
+        <div className="riders" style={{ fontSize: 13 }}>
+          <div>{offerSummary.buyerName}</div>
+          <div>{offerSummary.buyerEmail}</div>
+          <div>{offerSummary.buyerPhone}</div>
+        </div>
+        <button
+          type="button"
+          className="memoCta"
+          disabled={busy}
+          onClick={onSendOffer}
+        >
+          {busy ? "Sending…" : "Send this offer to the office"}
+        </button>
+        <button type="button" className="ghostPaper" onClick={onEditOffer}>
+          ← Edit offer
+        </button>
+        {sendError && (
+          <div className="finePaper" style={{ color: "var(--stamp)" }}>
+            {sendError}
+          </div>
+        )}
+        <div className="finePaper">
+          The office reviews all offers and responds within 48 hours.
+        </div>
       </div>
     );
   }
@@ -149,7 +234,7 @@ export default function DealMemo({
           </select>
         </div>
         <div className="finePaper" style={{ textAlign: "left", marginTop: 12 }}>
-          Complete your details below to submit this offer for review.
+          Complete your details below, then review your offer before sending.
         </div>
         <button type="button" className="ghostPaper" onClick={onBackFromOffer}>
           ← Back to standard terms

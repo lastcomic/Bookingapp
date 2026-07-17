@@ -24,6 +24,7 @@ export default function BookingApp() {
 
   // Intent + offer terms
   const [intent, setIntent] = useState<Intent>(null);
+  const [offerReview, setOfferReview] = useState(false);
   const [offerDraft, setOfferDraft] = useState<OfferDraft>({
     guarantee: "",
     doorPct: "",
@@ -95,6 +96,7 @@ export default function BookingApp() {
 
   function resetFlow() {
     setIntent(null);
+    setOfferReview(false);
     setResult(null);
     setError(null);
   }
@@ -308,14 +310,20 @@ export default function BookingApp() {
             result={result}
             roomComplete={roomComplete}
             offerDraft={offerDraft}
+            offerReview={offerReview}
+            offerSummary={{ venue, buyerName, buyerEmail, buyerPhone }}
+            busy={busy}
+            sendError={error}
             onOfferDraft={setOfferDraft}
             onRequest={() => setIntent("request")}
             onStartOffer={() => setIntent("offer")}
             onBackFromOffer={() => setIntent(null)}
+            onSendOffer={submit}
+            onEditOffer={() => setOfferReview(false)}
             onResultBack={resetFlow}
           />
 
-          {intent !== null && !result && (
+          {intent !== null && !result && !offerReview && (
             <section className="panel" style={{ marginTop: 24 }}>
               <div className="panelTitle">Your details</div>
               <div className="panelSub">
@@ -409,9 +417,9 @@ export default function BookingApp() {
                     !offerComplete ||
                     !contactComplete
                   }
-                  onClick={submit}
+                  onClick={intent === "offer" ? () => setOfferReview(true) : submit}
                 >
-                  {intent === "offer" ? "Submit offer for review" : "Request these dates"}
+                  {intent === "offer" ? "Review your offer" : "Request these dates"}
                 </button>
               )}
 

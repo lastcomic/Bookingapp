@@ -208,8 +208,12 @@ export default function BookingApp() {
         <div className="cred">
           Winner · NBC&apos;s Last Comic Standing&nbsp;&nbsp;·&nbsp;&nbsp;37 Years on Stage
         </div>
-        <div className="officeNote">
-          Private booking calendar. All terms issued by the office.
+        <div
+          className="officeNote"
+          style={{ fontSize: 14, color: "var(--text)", maxWidth: 620, lineHeight: 1.5 }}
+        >
+          Nobody needs twelve emails and three phone calls to book me. Put in
+          your offer, hit send, I&apos;ll get right back to you.
         </div>
       </header>
 

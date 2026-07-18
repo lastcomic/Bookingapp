@@ -549,6 +549,29 @@ function OfficeInner() {
                 </button>
               </div>
             </div>
+            <div className="field">
+              <label>What the buyer sees</label>
+              <div className="radioRow">
+                <button
+                  type="button"
+                  className={config.offerFirst ? "on" : ""}
+                  onClick={() => setConfig({ ...config, offerFirst: true })}
+                >
+                  They offer first
+                </button>
+                <button
+                  type="button"
+                  className={!config.offerFirst ? "on" : ""}
+                  onClick={() => setConfig({ ...config, offerFirst: false })}
+                >
+                  Show my quote
+                </button>
+              </div>
+              <div className="panelSub" style={{ marginTop: 6, marginBottom: 0 }}>
+                Offer first keeps your engine number private — buyers name their
+                terms, you judge against your quote in the inbox.
+              </div>
+            </div>
           </div>
           <button
             type="button"

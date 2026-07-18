@@ -58,7 +58,9 @@ export default function BookingApp() {
       return;
     }
     const seq = ++quoteSeq.current;
-    setMemo((prev) => (prev.kind === "quote" ? prev : { kind: "loading" }));
+    setMemo((prev) =>
+      prev.kind === "quote" || prev.kind === "invite" ? prev : { kind: "loading" }
+    );
     fetch("/api/quote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -80,6 +82,8 @@ export default function BookingApp() {
         if (data.belowMinimum) setMemo({ kind: "belowMinimum" });
         else if (data.collision)
           setMemo({ kind: "collision", span: data.span, shows });
+        else if (data.offerFirst && data.span)
+          setMemo({ kind: "invite", span: data.span, shows });
         else if (data.quote)
           setMemo({ kind: "quote", quote: data.quote, span: data.span, shows });
         else setMemo({ kind: "empty" });
@@ -189,7 +193,7 @@ export default function BookingApp() {
   const offerComplete =
     intent !== "offer" || Number(offerDraft.guarantee) > 0;
 
-  const memoReady = memo.kind === "quote";
+  const memoReady = memo.kind === "quote" || memo.kind === "invite";
   const span = spanDaysForShows(shows);
 
   return (

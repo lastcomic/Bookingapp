@@ -21,6 +21,7 @@ export type EngineConfig = {
   autoDeclineEnabled: boolean;
   accessCode: string; // buyer-facing front-door code; empty = page open
   requireEmailVerification: boolean;
+  offerFirst: boolean; // buyers make an offer; engine quote stays admin-only
 };
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -43,6 +44,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   autoDeclineEnabled: true,
   accessCode: "",
   requireEmailVerification: false,
+  offerFirst: true,
 };
 
 export type EngineInput = {

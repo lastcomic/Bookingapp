@@ -54,6 +54,16 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Offer-first: the buyer speaks first, so the engine number never reaches
+  // the browser. It stays server-side for the office inbox only.
+  if (cfg.offerFirst) {
+    return NextResponse.json({
+      span: { start: startDate, end: endDate },
+      offerFirst: true,
+      verificationRequired: cfg.requireEmailVerification === true,
+    });
+  }
+
   const minutes = await driveMinutes(cfg.homeBase, address);
   const quote = computeQuote(cfg, {
     capacity,
@@ -67,6 +77,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     span: { start: startDate, end: endDate },
     quote: toPublicQuote(quote, shows),
+    offerFirst: false,
     verificationRequired: cfg.requireEmailVerification === true,
   });
 }

@@ -24,6 +24,12 @@ export type MemoState =
       shows: number;
     }
   | {
+      // Offer-first: engagement is available, buyer makes an offer.
+      kind: "invite";
+      span: { start: string; end: string };
+      shows: number;
+    }
+  | {
       kind: "quote";
       quote: PublicQuote;
       span: { start: string; end: string };
@@ -115,7 +121,11 @@ export default function DealMemo({
 
   // Review step: the buyer's own offer, rendered back to them on the paper
   // before it is sent to the office.
-  if (intent === "offer" && offerReview && state.kind === "quote") {
+  if (
+    intent === "offer" &&
+    offerReview &&
+    (state.kind === "quote" || state.kind === "invite")
+  ) {
     const guarantee = Number(offerDraft.guarantee) || 0;
     const doorPct = Number(offerDraft.doorPct) || 0;
     const travel = Number(offerDraft.travel) || 0;
@@ -187,7 +197,7 @@ export default function DealMemo({
         <div className="memoHead">OFFICE OF JOHN HEFFRON · SUBMIT AN OFFER</div>
         <hr className="rule" />
         <div className="engagementLine" style={{ lineHeight: 1.7, marginBottom: 10 }}>
-          {state.kind === "quote" && (
+          {(state.kind === "quote" || state.kind === "invite") && (
             <>
               <b>Dates:</b> {formatSpanWeekday(state.span.start, state.span.end)} ·{" "}
               {state.shows} shows
@@ -251,7 +261,10 @@ export default function DealMemo({
         </div>
       )}
       {state.kind === "belowMinimum" && <div className="stamp">Contact Office</div>}
-      <div className="memoHead">OFFICE OF JOHN HEFFRON · DEAL MEMO</div>
+      <div className="memoHead">
+        OFFICE OF JOHN HEFFRON ·{" "}
+        {state.kind === "invite" ? "MAKE AN OFFER" : "DEAL MEMO"}
+      </div>
       <hr className="rule" />
 
       {state.kind === "empty" && (
@@ -283,6 +296,31 @@ export default function DealMemo({
               } open days`}
           .
         </div>
+      )}
+
+      {state.kind === "invite" && (
+        <>
+          <div className="engagementLine">
+            <b>ENGAGEMENT:</b> {formatSpanWeekday(state.span.start, state.span.end)} ·{" "}
+            {state.shows} {state.shows === 1 ? "show" : "shows"}
+          </div>
+          <div className="memoBody" style={{ marginTop: 8 }}>
+            Submit your terms for this engagement — guarantee, door split,
+            travel, and hotel. The office reviews every offer and responds
+            within 48 hours.
+          </div>
+          <button
+            type="button"
+            className="memoCta"
+            disabled={!roomComplete}
+            onClick={onStartOffer}
+          >
+            Make your offer
+          </button>
+          <div className="finePaper">
+            All engagements subject to Artist approval.
+          </div>
+        </>
       )}
 
       {state.kind === "quote" && (

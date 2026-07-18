@@ -22,6 +22,7 @@ export type EngineConfig = {
   accessCode: string; // buyer-facing front-door code; empty = page open
   requireEmailVerification: boolean;
   offerFirst: boolean; // buyers make an offer; engine quote stays admin-only
+  ballparkPct: number; // offers at/above this % of quote get an encouragement stamp
 };
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -45,6 +46,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   accessCode: "",
   requireEmailVerification: false,
   offerFirst: true,
+  ballparkPct: 90,
 };
 
 export type EngineInput = {
@@ -172,4 +174,17 @@ export function offerMeetsThreshold(
   const offeredValue = offer.guarantee + (offer.travel || 0);
   const engineValue = quote.guarantee + quote.travelBuyout;
   return offeredValue >= engineValue * (cfg.autoDeclinePct / 100);
+}
+
+// Encouragement only: an offer at/above the ballpark threshold earns a
+// warm stamp on the buyer's confirmation. Revealed after the offer is sent,
+// so it can't be used to probe the private quote.
+export function offerInBallpark(
+  cfg: EngineConfig,
+  quote: EngineQuote,
+  offer: OfferTerms
+): boolean {
+  const offeredValue = offer.guarantee + (offer.travel || 0);
+  const engineValue = quote.guarantee + quote.travelBuyout;
+  return offeredValue >= engineValue * (cfg.ballparkPct / 100);
 }

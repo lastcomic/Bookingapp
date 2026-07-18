@@ -44,7 +44,7 @@ export type OfferDraft = {
 };
 
 export type MemoResult =
-  | { kind: "received"; forOffer: boolean }
+  | { kind: "received"; forOffer: boolean; ballpark?: boolean }
   | { kind: "declined"; message: string };
 
 function money(n: number): string {
@@ -97,15 +97,29 @@ export default function DealMemo({
   if (result) {
     return (
       <div className="memo">
+        {result.kind === "received" && result.ballpark && (
+          <div className="stamp">In the Ballpark</div>
+        )}
         <div className="memoHead">
           OFFICE OF JOHN HEFFRON · {result.kind === "declined" ? "SUBMIT AN OFFER" : "DEAL MEMO"}
         </div>
         <hr className="rule" />
         {result.kind === "received" ? (
           <div className="memoBody" style={{ lineHeight: 1.8 }}>
-            {result.forOffer
-              ? "✓ Offer received. The office reviews all offers and responds within 48 hours."
-              : "✓ Request received. The office will verify and confirm within 48 hours."}
+            {result.forOffer ? (
+              <>
+                ✓ Offer received. The office reviews all offers and responds
+                within 48 hours.
+                {result.ballpark && (
+                  <div style={{ marginTop: 10 }}>
+                    Your terms are in range for a room of this size — a good
+                    sign. The office will be in touch soon.
+                  </div>
+                )}
+              </>
+            ) : (
+              "✓ Request received. The office will verify and confirm within 48 hours."
+            )}
           </div>
         ) : (
           <div className="memoBody" style={{ lineHeight: 1.8 }}>

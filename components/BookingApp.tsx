@@ -177,7 +177,12 @@ export default function BookingApp() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");
       if (data.declined) setResult({ kind: "declined", message: data.message });
-      else setResult({ kind: "received", forOffer: intent === "offer" });
+      else
+        setResult({
+          kind: "received",
+          forOffer: intent === "offer",
+          ballpark: data.ballpark === true,
+        });
     } catch (e: any) {
       setError(e.message);
     } finally {

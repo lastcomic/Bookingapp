@@ -249,6 +249,7 @@ function OfficeInner() {
     ["depositDueHours", "Deposit due (hours after contract)"],
     ["minCapacity", "Minimum capacity (seats)"],
     ["autoDeclinePct", "Auto-decline under (% of quote)"],
+    ["ballparkPct", "Encouragement stamp at (% of quote)"],
   ];
 
   return (

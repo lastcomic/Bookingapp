@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import {
   computeQuote,
   offerMeetsThreshold,
+  offerInBallpark,
   spanDaysForShows,
   OfferTerms,
 } from "@/lib/engine";
@@ -185,8 +186,12 @@ export async function POST(req: NextRequest) {
   };
   await notifyJohn(cfg, record);
 
+  const ballpark =
+    kind === "offer" && offer !== null && offerInBallpark(cfg, quote, offer);
+
   return NextResponse.json({
     submitted: true,
+    ballpark,
     message: "The office reviews all requests and responds within 48 hours.",
   });
 }

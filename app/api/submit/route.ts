@@ -56,7 +56,9 @@ export async function POST(req: NextRequest) {
   const venue = String(body.venue || "").trim();
   const address = String(body.address || "").trim();
   const capacity = Math.round(Number(body.capacity));
-  const ticketPrice = Number(body.ticketPrice);
+  // Ticket price is optional; without it the engine falls back to the floor.
+  const rawPrice = Number(body.ticketPrice);
+  const ticketPrice = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0;
   const shows = Math.round(Number(body.shows));
   const startDate = body.startDate;
   const repeatClaim = body.repeatClaim === true;
@@ -71,7 +73,6 @@ export async function POST(req: NextRequest) {
     !venue || !address ||
     !isValidISODate(startDate) || startDate < todayISO() ||
     !Number.isFinite(capacity) || capacity <= 0 ||
-    !Number.isFinite(ticketPrice) || ticketPrice <= 0 ||
     !Number.isFinite(shows) || shows < 1 || shows > 6
   ) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -121,10 +122,22 @@ export async function POST(req: NextRequest) {
     const doorPct = Number(body.offer?.doorPct) || 0;
     const travel = Number(body.offer?.travel) || 0;
     const hotel = body.offer?.hotel === true;
+    const rawBonus = Number(body.offer?.bonus);
+    const bonus = Number.isFinite(rawBonus) && rawBonus > 0 ? rawBonus : 0;
+    const bonusTerms = String(body.offer?.bonusTerms || "").trim().slice(0, 300);
+    const notes = String(body.offer?.notes || "").trim().slice(0, 1000);
     if (!Number.isFinite(guarantee) || guarantee <= 0 || doorPct < 0 || doorPct > 100 || travel < 0) {
       return NextResponse.json({ error: "Invalid offer terms" }, { status: 400 });
     }
-    offer = { guarantee, doorPct, travel, hotel };
+    offer = {
+      guarantee,
+      doorPct,
+      travel,
+      hotel,
+      ...(bonus > 0 ? { bonus } : {}),
+      ...(bonusTerms ? { bonusTerms } : {}),
+      ...(notes ? { notes } : {}),
+    };
   }
 
   const repeatVerified = repeatClaim ? await venueOnRecord(venue) : false;

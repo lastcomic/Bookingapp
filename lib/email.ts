@@ -145,7 +145,9 @@ export async function notifyJohn(cfg: EngineConfig, s: SubmissionRecord): Promis
     "",
     `${s.venue} — ${city}`,
     dates,
-    `${s.shows} show${s.shows === 1 ? "" : "s"} · Cap ${s.capacity} · Tickets ${money(s.ticket_price)}`,
+    `${s.shows} show${s.shows === 1 ? "" : "s"} · Cap ${s.capacity}${
+      s.ticket_price > 0 ? ` · Tickets ${money(s.ticket_price)}` : ""
+    }`,
     repeatTag,
     "",
     `Engine quote: ${money(s.quote.guarantee)} vs ${s.quote.doorPct}%`,
@@ -157,6 +159,13 @@ export async function notifyJohn(cfg: EngineConfig, s: SubmissionRecord): Promis
         (s.offer.travel ? ` + ${money(s.offer.travel)} travel` : "") +
         ` · Hotel: ${s.offer.hotel ? "yes" : "no"}`
     );
+    if (s.offer.bonus) {
+      lines.push(
+        `Bonus: ${money(s.offer.bonus)}` +
+          (s.offer.bonusTerms ? ` ${s.offer.bonusTerms}` : "")
+      );
+    }
+    if (s.offer.notes) lines.push(`Note: ${s.offer.notes}`);
   }
   lines.push(
     `Walkout potential: ${money(s.quote.walkoutPotential)}`,
@@ -189,10 +198,18 @@ export async function sendDealSheet(cfg: EngineConfig, s: SubmissionRecord): Pro
               : ""),
           `+ ${money(s.quote.selloutBonus)} per sellout`,
           ...(s.offer.travel ? [`${money(s.offer.travel)} travel buyout`] : []),
+          ...(s.offer.bonus
+            ? [
+                `${money(s.offer.bonus)} bonus${
+                  s.offer.bonusTerms ? ` ${s.offer.bonusTerms}` : ""
+                }`,
+              ]
+            : []),
           s.offer.hotel
             ? "Hotel provided by purchaser. No comps without Artist approval."
             : "No hotel included — confirm lodging. No comps without Artist approval.",
           ...(s.shows >= 4 ? ["Thursday arrival for press"] : []),
+          ...(s.offer.notes ? [`Buyer note: ${s.offer.notes}`] : []),
           ...(s.quote.depositPct > 0
             ? [
                 `${s.quote.depositPct}% deposit due ${s.quote.depositDueHours} hours after contract — first-time buyer`,
@@ -205,7 +222,7 @@ export async function sendDealSheet(cfg: EngineConfig, s: SubmissionRecord): Pro
     dates,
     `${s.shows} Show${s.shows === 1 ? "" : "s"}`,
     ...agreed,
-    `Cap ${s.capacity} · Tickets ${money(s.ticket_price)}`,
+    `Cap ${s.capacity}${s.ticket_price > 0 ? ` · Tickets ${money(s.ticket_price)}` : ""}`,
     `Buyer: ${s.buyer_name} / ${s.venue}`,
     `Contact: ${s.buyer_email} ${s.buyer_phone}`,
     `Source: Booking app — terms accepted ${new Date().toISOString().slice(0, 10)}`,

@@ -30,7 +30,15 @@ type Item = {
     isDrive: boolean;
     depositPct: number;
   };
-  offer: { guarantee: number; doorPct: number; travel: number; hotel: boolean } | null;
+  offer: {
+    guarantee: number;
+    doorPct: number;
+    travel: number;
+    hotel: boolean;
+    bonus?: number;
+    bonusTerms?: string;
+    notes?: string;
+  } | null;
   created_at: string;
 };
 
@@ -340,7 +348,8 @@ function OfficeInner() {
                   Dates: {formatSpan(item.start_date, item.end_date)} ·{" "}
                   {item.kind === "offer" ? "offer" : "date request"}
                   <br />
-                  {item.capacity} cap · {money(item.ticket_price)} tix ·{" "}
+                  {item.capacity} cap
+                  {item.ticket_price > 0 ? ` · ${money(item.ticket_price)} tix` : ""} ·{" "}
                   {item.shows} shows
                   {item.drive_minutes !== null &&
                     ` · ${Math.round(item.drive_minutes / 6) / 10} hr drive`}
@@ -355,7 +364,20 @@ function OfficeInner() {
                       {item.offer.doorPct > 0 && <> vs {item.offer.doorPct}%</>} ·
                       travel {money(item.offer.travel)} · hotel{" "}
                       {item.offer.hotel ? "yes" : "no"}
+                      {item.offer.bonus ? (
+                        <>
+                          {" "}
+                          · bonus {money(item.offer.bonus)}
+                          {item.offer.bonusTerms ? ` ${item.offer.bonusTerms}` : ""}
+                        </>
+                      ) : null}
                       <br />
+                      {item.offer.notes && (
+                        <span style={{ color: "#b7c0cc", fontStyle: "italic" }}>
+                          Note: {item.offer.notes}
+                          <br />
+                        </span>
+                      )}
                       <span className={`engineLine ${atOrAbove ? "good" : "low"}`}>
                         Engine would quote: {money(item.quote.guarantee)} (
                         {atOrAbove ? "at/above" : `${pctOfQuote}% of`} your number) ·

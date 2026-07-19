@@ -161,6 +161,9 @@ export type OfferTerms = {
   doorPct: number;
   travel: number;
   hotel: boolean;
+  bonus?: number; // conditional sweetener; not counted in decline/ballpark math
+  bonusTerms?: string; // e.g. "after 250 tickets sold or comped"
+  notes?: string; // free-text: anything else the buyer wants on record
 };
 
 // An offer is measured against the engine guarantee. Travel money counts

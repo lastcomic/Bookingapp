@@ -41,6 +41,9 @@ export type OfferDraft = {
   doorPct: string;
   travel: string;
   hotel: "yes" | "no";
+  bonus: string;
+  bonusTerms: string;
+  notes: string;
 };
 
 export type MemoResult =
@@ -173,7 +176,21 @@ export default function DealMemo({
           <div>
             Hotel {offerDraft.hotel === "yes" ? "provided by purchaser" : "not included"}
           </div>
+          {Number(offerDraft.bonus) > 0 && (
+            <div>
+              + {money(Number(offerDraft.bonus))} bonus
+              {offerDraft.bonusTerms.trim() ? ` ${offerDraft.bonusTerms.trim()}` : ""}
+            </div>
+          )}
         </div>
+        {offerDraft.notes.trim() && (
+          <>
+            <hr className="rule" />
+            <div className="clause" style={{ whiteSpace: "pre-wrap" }}>
+              {offerDraft.notes.trim()}
+            </div>
+          </>
+        )}
         <hr className="rule" />
         <div className="riders" style={{ fontSize: 13 }}>
           <div>{offerSummary.buyerName}</div>
@@ -256,6 +273,32 @@ export default function DealMemo({
             <option value="yes">Yes</option>
             <option value="no">No</option>
           </select>
+        </div>
+        <div className="paperField">
+          <label>Bonus, if any ($) — optional</label>
+          <input
+            inputMode="numeric"
+            value={offerDraft.bonus}
+            placeholder="e.g. 500"
+            onChange={(e) => set({ bonus: numeric(e.target.value) })}
+          />
+        </div>
+        <div className="paperField">
+          <label>Bonus condition — optional</label>
+          <input
+            value={offerDraft.bonusTerms}
+            placeholder="e.g. after 250 tickets sold or comped"
+            onChange={(e) => set({ bonusTerms: e.target.value })}
+          />
+        </div>
+        <div className="paperField">
+          <label>Anything else — optional</label>
+          <textarea
+            rows={3}
+            value={offerDraft.notes}
+            placeholder="Add any other terms you want on record."
+            onChange={(e) => set({ notes: e.target.value })}
+          />
         </div>
         <div className="finePaper" style={{ textAlign: "left", marginTop: 12 }}>
           Complete your details below, then review your offer before sending.

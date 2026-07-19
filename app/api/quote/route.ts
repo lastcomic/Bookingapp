@@ -18,7 +18,9 @@ export async function POST(req: NextRequest) {
   }
 
   const capacity = Math.round(Number(body.capacity));
-  const ticketPrice = Number(body.ticketPrice);
+  // Ticket price is optional; without it the engine falls back to the floor.
+  const rawPrice = Number(body.ticketPrice);
+  const ticketPrice = Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 0;
   const shows = Math.round(Number(body.shows));
   const startDate = body.startDate;
   const firstTime = body.firstTime !== false;
@@ -27,7 +29,6 @@ export async function POST(req: NextRequest) {
   if (
     !isValidISODate(startDate) ||
     !Number.isFinite(capacity) || capacity <= 0 ||
-    !Number.isFinite(ticketPrice) || ticketPrice <= 0 ||
     !Number.isFinite(shows) || shows < 1 || shows > 6
   ) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

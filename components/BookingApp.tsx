@@ -30,6 +30,9 @@ export default function BookingApp() {
     doorPct: "",
     travel: "",
     hotel: "yes",
+    bonus: "",
+    bonusTerms: "",
+    notes: "",
   });
 
   // Buyer contact + verification
@@ -45,15 +48,16 @@ export default function BookingApp() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MemoResult | null>(null);
 
+  // Ticket price is optional now — buyers making an offer may not want to
+  // commit to one. Venue, a date, capacity, and repeat status still required.
   const roomComplete =
     startDate !== null &&
     venue.trim() !== "" &&
     Number(capacity) > 0 &&
-    Number(ticketPrice) > 0 &&
     repeatClaim !== null;
 
   const fetchQuote = useCallback(() => {
-    if (!startDate || Number(capacity) <= 0 || Number(ticketPrice) <= 0) {
+    if (!startDate || Number(capacity) <= 0) {
       setMemo({ kind: "empty" });
       return;
     }
@@ -156,7 +160,7 @@ export default function BookingApp() {
         venue,
         address,
         capacity: Number(capacity),
-        ticketPrice: Number(ticketPrice),
+        ticketPrice: Number(ticketPrice) || 0,
         shows,
         startDate,
         repeatClaim: repeatClaim === true,
@@ -167,6 +171,9 @@ export default function BookingApp() {
           doorPct: Number(offerDraft.doorPct) || 0,
           travel: Number(offerDraft.travel) || 0,
           hotel: offerDraft.hotel === "yes",
+          bonus: Number(offerDraft.bonus) || 0,
+          bonusTerms: offerDraft.bonusTerms,
+          notes: offerDraft.notes,
         };
       }
       const res = await fetch("/api/submit", {
@@ -279,11 +286,11 @@ export default function BookingApp() {
             />
           </div>
           <div className="field">
-            <label>Ticket price ($)</label>
+            <label>Ticket price ($) — optional</label>
             <input
               inputMode="decimal"
               value={ticketPrice}
-              placeholder="25"
+              placeholder="optional"
               onChange={(e) => {
                 setTicketPrice(e.target.value.replace(/[^\d.]/g, ""));
                 resetFlow();

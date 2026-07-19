@@ -244,12 +244,45 @@ textarea {
   border-color: var(--gold);
   color: #14181d;
   font-weight: 700;
+  box-shadow: 0 0 0 2px var(--gold), 0 4px 12px rgba(201, 164, 92, 0.4);
+}
+
+.calCell {
+  transition: background 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+/* keep taps from getting stuck on hover styles on touch devices */
+@media (hover: none) {
+  .calCell.open:hover {
+    border-color: var(--border);
+  }
 }
 
 .calHint {
   font-size: 11px;
   color: var(--hint);
   margin-top: 10px;
+}
+
+.calSelected {
+  margin-top: 12px;
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  background: rgba(201, 164, 92, 0.1);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.calSelected b {
+  color: var(--gold);
+}
+
+.calSelected .calCheck {
+  color: var(--gold);
+  font-weight: 700;
+  margin-right: 4px;
 }
 
 /* ---------- forms (dark panels) ---------- */

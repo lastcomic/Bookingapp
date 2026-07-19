@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Calendar from "@/components/Calendar";
 import DealMemo, { MemoState, MemoResult, OfferDraft } from "@/components/DealMemo";
-import { spanDaysForShows } from "@/lib/dates";
+import { spanDaysForShows, addDays, formatSpanWeekday } from "@/lib/dates";
 
 type Intent = null | "request" | "offer";
 
@@ -229,10 +229,19 @@ export default function BookingApp() {
               resetFlow();
             }}
           />
-          <div className="calHint">
-            Selecting a start date holds {span} day{span > 1 ? "s" : ""} for a{" "}
-            {shows}-show engagement. HELD dates are unavailable.
-          </div>
+          {startDate ? (
+            <div className="calSelected">
+              <span className="calCheck">✓</span> Holding{" "}
+              <b>{formatSpanWeekday(startDate, addDays(startDate, span - 1))}</b> —{" "}
+              {shows}-show engagement, {span} day{span > 1 ? "s" : ""}.
+              {span === 1 && " Need two nights? Set 3–4 shows below."}
+            </div>
+          ) : (
+            <div className="calHint">
+              Tap a start date. Your show count sets the length — 1–2 shows = 1
+              day, 3–4 = 2 days, 5–6 = 3 days. HELD dates are unavailable.
+            </div>
+          )}
 
           <div className="panelTitle sectionGap">Tell us about your room</div>
           <div className="field">

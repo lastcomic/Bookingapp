@@ -79,6 +79,9 @@ CREATE TABLE IF NOT EXISTS manual_holds (
   hold_date DATE NOT NULL,
   UNIQUE (artist_id, hold_date)
 );
+
+-- Added after launch; safe to run repeatedly.
+ALTER TABLE submissions ADD COLUMN IF NOT EXISTS counter JSONB;
 `;
 
 async function ensureSchema(): Promise<void> {

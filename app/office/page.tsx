@@ -139,23 +139,77 @@ function OfficeInner() {
     }
   }
 
-  async function act(id: number, action: "accept" | "counter" | "decline") {
+  async function act(
+    id: number,
+    action: "accept" | "counter" | "counter_custom" | "decline",
+    counter?: Record<string, any>
+  ) {
     setBusy(true);
     setError(null);
     try {
       const res = await fetch("/api/office/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action }),
+        body: JSON.stringify({ id, action, counter }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Action failed");
+      setCounterId(null);
       await loadAll();
     } catch (e: any) {
       setError(e.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  // Custom counter editor state
+  type CounterDraft = {
+    guarantee: string;
+    doorPct: string;
+    travel: string;
+    hotel: boolean;
+    bonus: string;
+    bonusTerms: string;
+    message: string;
+  };
+  const [counterId, setCounterId] = useState<number | null>(null);
+  const [counterDraft, setCounterDraft] = useState<CounterDraft>({
+    guarantee: "",
+    doorPct: "",
+    travel: "",
+    hotel: true,
+    bonus: "",
+    bonusTerms: "",
+    message: "",
+  });
+
+  function openCounter(item: Item) {
+    // Prefill with the buyer's own offer so John just tweaks the one thing.
+    const o = item.offer;
+    setCounterDraft({
+      guarantee: String(o ? o.guarantee : item.quote.guarantee),
+      doorPct: String(o && o.doorPct ? o.doorPct : item.quote.doorPct),
+      travel: String(o ? o.travel : item.quote.travelBuyout || 0),
+      hotel: o ? o.hotel : true,
+      bonus: o && o.bonus ? String(o.bonus) : "",
+      bonusTerms: o && o.bonusTerms ? o.bonusTerms : "",
+      message: "",
+    });
+    setCounterId(item.id);
+    setError(null);
+  }
+
+  function sendCounter(id: number) {
+    act(id, "counter_custom", {
+      guarantee: Number(counterDraft.guarantee) || 0,
+      doorPct: Number(counterDraft.doorPct) || 0,
+      travel: Number(counterDraft.travel) || 0,
+      hotel: counterDraft.hotel,
+      bonus: Number(counterDraft.bonus) || 0,
+      bonusTerms: counterDraft.bonusTerms,
+      message: counterDraft.message,
+    });
   }
 
   async function saveSettings() {
@@ -403,9 +457,17 @@ function OfficeInner() {
                     >
                       Accept
                     </button>
+                    <button
+                      className="actBtn counter"
+                      disabled={busy}
+                      onClick={() => openCounter(item)}
+                    >
+                      Counter…
+                    </button>
                     {item.kind === "offer" && item.status === "new" && (
                       <button
                         className="actBtn counter"
+                        style={{ opacity: 0.85 }}
                         disabled={busy}
                         onClick={() => act(item.id, "counter")}
                       >
@@ -419,6 +481,132 @@ function OfficeInner() {
                     >
                       Decline
                     </button>
+                  </div>
+                )}
+
+                {counterId === item.id && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      paddingTop: 12,
+                      borderTop: "1px dashed var(--border)",
+                    }}
+                  >
+                    <div className="panelSub" style={{ marginBottom: 8 }}>
+                      Your counter — emailed straight to the buyer. Prefilled with
+                      their offer, so just change what you need.
+                    </div>
+                    <div className="settingsGrid">
+                      <div className="field">
+                        <label>Guarantee ($)</label>
+                        <input
+                          inputMode="numeric"
+                          value={counterDraft.guarantee}
+                          onChange={(e) =>
+                            setCounterDraft({
+                              ...counterDraft,
+                              guarantee: e.target.value.replace(/[^\d]/g, ""),
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="field">
+                        <label>Door %</label>
+                        <input
+                          inputMode="numeric"
+                          value={counterDraft.doorPct}
+                          onChange={(e) =>
+                            setCounterDraft({
+                              ...counterDraft,
+                              doorPct: e.target.value.replace(/[^\d]/g, ""),
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="field">
+                        <label>Travel ($)</label>
+                        <input
+                          inputMode="numeric"
+                          value={counterDraft.travel}
+                          onChange={(e) =>
+                            setCounterDraft({
+                              ...counterDraft,
+                              travel: e.target.value.replace(/[^\d]/g, ""),
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="field">
+                        <label>Bonus ($)</label>
+                        <input
+                          inputMode="numeric"
+                          value={counterDraft.bonus}
+                          onChange={(e) =>
+                            setCounterDraft({
+                              ...counterDraft,
+                              bonus: e.target.value.replace(/[^\d]/g, ""),
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label>Bonus condition (optional)</label>
+                      <input
+                        value={counterDraft.bonusTerms}
+                        placeholder="e.g. after 250 tickets sold or comped"
+                        onChange={(e) =>
+                          setCounterDraft({ ...counterDraft, bonusTerms: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Hotel</label>
+                      <div className="radioRow">
+                        <button
+                          type="button"
+                          className={counterDraft.hotel ? "on" : ""}
+                          onClick={() => setCounterDraft({ ...counterDraft, hotel: true })}
+                        >
+                          Provided by purchaser
+                        </button>
+                        <button
+                          type="button"
+                          className={!counterDraft.hotel ? "on" : ""}
+                          onClick={() => setCounterDraft({ ...counterDraft, hotel: false })}
+                        >
+                          To confirm
+                        </button>
+                      </div>
+                    </div>
+                    <div className="field">
+                      <label>Your message to the buyer</label>
+                      <textarea
+                        rows={3}
+                        value={counterDraft.message}
+                        placeholder="Everything looks good — I just need an extra $200 toward travel and we're set."
+                        onChange={(e) =>
+                          setCounterDraft({ ...counterDraft, message: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        className="actBtn accept"
+                        disabled={busy || Number(counterDraft.guarantee) <= 0}
+                        onClick={() => sendCounter(item.id)}
+                      >
+                        Send counter
+                      </button>
+                      <button
+                        className="actBtn"
+                        style={{ background: "var(--border)" }}
+                        disabled={busy}
+                        onClick={() => setCounterId(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

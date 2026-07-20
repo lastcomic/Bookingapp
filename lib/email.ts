@@ -276,6 +276,57 @@ export async function sendCounterMemo(cfg: EngineConfig, s: SubmissionRecord): P
   });
 }
 
+export type CounterTerms = {
+  guarantee: number;
+  doorPct: number;
+  travel: number;
+  hotel: boolean;
+  bonus?: number;
+  bonusTerms?: string;
+  message?: string;
+};
+
+// Custom counter — John's own revised terms, emailed straight to the buyer.
+// No agent in the middle.
+export async function sendCustomCounter(
+  s: SubmissionRecord,
+  counter: CounterTerms
+): Promise<void> {
+  const dates = formatSpan(s.start_date, s.end_date);
+  const terms = [
+    `${money(counter.guarantee)} Guarantee vs ${counter.doorPct}% of gross box office receipts, whichever is greater`,
+  ];
+  if (counter.travel > 0) terms.push(`${money(counter.travel)} travel buyout`);
+  if (counter.bonus && counter.bonus > 0) {
+    terms.push(
+      `${money(counter.bonus)} bonus${counter.bonusTerms ? ` ${counter.bonusTerms}` : ""}`
+    );
+  }
+  terms.push(
+    counter.hotel
+      ? "Hotel provided by purchaser. No comps without Artist approval."
+      : "Hotel to be confirmed. No comps without Artist approval."
+  );
+  await sendMail({
+    to: s.buyer_email,
+    subject: `John Heffron — ${s.venue} — ${dates} — Revised terms`,
+    text: [
+      `${s.buyer_name},`,
+      "",
+      ...(counter.message ? [counter.message, ""] : []),
+      "Revised terms:",
+      `${s.venue} — ${cityFromAddress(s.address)}`,
+      dates,
+      `${s.shows} Show${s.shows === 1 ? "" : "s"}`,
+      ...terms,
+      "",
+      "Reply to this email to confirm and we are set.",
+      "",
+      "— John Heffron",
+    ].join("\n"),
+  });
+}
+
 export async function sendBuyerDecline(s: SubmissionRecord): Promise<void> {
   const dates = formatSpan(s.start_date, s.end_date);
   await sendMail({

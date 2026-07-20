@@ -294,8 +294,10 @@ function OfficeInner() {
     );
   }
 
+  const STRING_KEYS = ["accessCode", "homeBase", "managerPassword"];
   const SETTINGS_FIELDS: [string, string][] = [
     ["accessCode", "Buyer access code (blank = page open)"],
+    ["managerPassword", "Manager password — second office login (blank = off)"],
     ["homeBase", "Home base"],
     ["driveRadiusHours", "Drive radius (hours)"],
     ["winterRadiusHours", "Winter radius, Nov–Mar (hours)"],
@@ -711,7 +713,7 @@ function OfficeInner() {
                 <label>{label}</label>
                 <input
                   value={config[key] ?? ""}
-                  inputMode={key === "homeBase" ? "text" : "decimal"}
+                  inputMode={STRING_KEYS.includes(key) ? "text" : "decimal"}
                   onChange={(e) =>
                     setConfig({ ...config, [key]: e.target.value })
                   }

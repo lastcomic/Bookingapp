@@ -23,6 +23,7 @@ export type EngineConfig = {
   requireEmailVerification: boolean;
   offerFirst: boolean; // buyers make an offer; engine quote stays admin-only
   ballparkPct: number; // offers at/above this % of quote get an encouragement stamp
+  managerPassword: string; // second office login John can set from /office; empty = off
 };
 
 export const DEFAULT_CONFIG: EngineConfig = {
@@ -47,6 +48,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   requireEmailVerification: false,
   offerFirst: true,
   ballparkPct: 90,
+  managerPassword: "",
 };
 
 export type EngineInput = {

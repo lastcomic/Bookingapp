@@ -35,6 +35,13 @@ export function checkPassword(password: string): boolean {
   return safeEqual(password, expected);
 }
 
+// A second, John-settable login (the manager password from engine settings).
+export function checkManagerPassword(password: string, managerPassword: string): boolean {
+  const expected = (managerPassword || "").trim();
+  if (!expected) return false;
+  return safeEqual(password.trim(), expected);
+}
+
 export function createSessionToken(scope: Scope): string {
   const exp = Date.now() + SESSION_DAYS * 24 * 3600 * 1000;
   return `${exp}.${sign(`${scope}:${exp}`)}`;

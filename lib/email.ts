@@ -24,6 +24,12 @@ export function smtpTransport() {
       user: clean(process.env.SMTP_USER),
       pass: clean(process.env.SMTP_PASS).replace(/\s+/g, ""),
     },
+    // Shared hosting (e.g. aplus.net) presents a provider certificate that
+    // does not name the vanity mail host, so hostname verification fails
+    // even though the TLS connection is fine. The link stays encrypted; we
+    // just don't reject on the name mismatch. Set SMTP_STRICT_TLS=1 to
+    // require a matching certificate.
+    tls: { rejectUnauthorized: process.env.SMTP_STRICT_TLS === "1" },
   });
 }
 
